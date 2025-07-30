@@ -1,0 +1,15 @@
+# MySQL MCP Client Requirements
+# MCP 클라이언트 테스트 애플리케이션 실행에 필요한 패키지 목록
+
+# MCP 클라이언트 관련 패키지
+mcp>=1.0.0
+
+# 비동기 처리
+asyncio
+
+# 로깅 및 유틸리티
+typing-extensions>=4.0.0
+
+# 개발 및 테스트용 (선택사항)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0 
