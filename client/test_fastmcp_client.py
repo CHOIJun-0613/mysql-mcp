@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-FastMCP/FyMCP MySQL MCP 서버 테스트 클라이언트
-FastMCP와 FyMCP 프레임워크로 구현된 MCP 서버를 테스트하기 위한 클라이언트 애플리케이션
+MySQL MCP 서버 테스트 클라이언트 (실제 패키지 버전)
+MySQL MCP 서버를 테스트하기 위한 클라이언트 애플리케이션
 """
 
 import asyncio
@@ -17,10 +17,10 @@ from mcp.client.stdio import stdio_client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class FastMCPTestClient:
-    """FastMCP/FyMCP 테스트 클라이언트 클래스"""
+class MCPTestClient:
+    """MCP 테스트 클라이언트 클래스"""
     
-    def __init__(self, server_path: str, server_type: str = "fastmcp"):
+    def __init__(self, server_path: str, server_type: str = "improved"):
         """초기화"""
         self.server_path = server_path
         self.server_type = server_type
@@ -77,7 +77,7 @@ class FastMCPTestClient:
             return None
     
     async def run_comparison_test(self):
-        """FastMCP와 FyMCP 비교 테스트"""
+        """서버 비교 테스트"""
         print(f"=== {self.server_type.upper()} MySQL MCP 서버 테스트 ===")
         
         test_cases = [
@@ -87,10 +87,6 @@ class FastMCPTestClient:
             ("describe_table", {"table_name": "users"}, "테이블 구조 조회"),
             ("get_table_info", {"table_name": "users"}, "테이블 상세 정보 조회"),
         ]
-        
-        # FyMCP 전용 테스트 케이스
-        if self.server_type == "fymcp":
-            test_cases.append(("get_database_stats", {}, "데이터베이스 통계 조회"))
         
         for tool_name, arguments, description in test_cases:
             print(f"\n--- {description} ---")
@@ -171,13 +167,14 @@ class FastMCPTestClient:
             await self.session.close()
             logger.info(f"{self.server_type.upper()} MCP 클라이언트 연결이 종료되었습니다.")
 
-async def run_framework_comparison():
-    """FastMCP와 FyMCP 프레임워크 비교 테스트"""
-    print("=== FastMCP vs FyMCP 프레임워크 비교 테스트 ===")
+async def run_server_comparison():
+    """서버 비교 테스트"""
+    print("=== MySQL MCP 서버 비교 테스트 ===")
     
     servers = [
+        ("improved", "../server/mysql_mcp_server_v2.py"),
         ("fastmcp", "../server/fastmcp_mysql_server.py"),
-        ("fymcp", "../server/fymcp_mysql_server.py")
+        ("basic", "../server/mysql_mcp_server.py")
     ]
     
     for server_type, server_path in servers:
@@ -185,7 +182,7 @@ async def run_framework_comparison():
         print(f"테스트 중: {server_type.upper()}")
         print(f"{'='*50}")
         
-        client = FastMCPTestClient(server_path, server_type)
+        client = MCPTestClient(server_path, server_type)
         
         try:
             # 서버 연결
@@ -199,14 +196,15 @@ async def run_framework_comparison():
         finally:
             await client.close()
     
-    print("\n=== 프레임워크 비교 테스트 완료 ===")
+    print("\n=== 서버 비교 테스트 완료 ===")
 
 async def main():
     """메인 함수"""
     if len(sys.argv) < 2:
         print("사용법:")
+        print("  python test_fastmcp_client.py improved [--interactive]")
         print("  python test_fastmcp_client.py fastmcp [--interactive]")
-        print("  python test_fastmcp_client.py fymcp [--interactive]")
+        print("  python test_fastmcp_client.py basic [--interactive]")
         print("  python test_fastmcp_client.py compare")
         return
     
@@ -214,18 +212,23 @@ async def main():
     interactive_mode = "--interactive" in sys.argv
     
     if server_type == "compare":
-        await run_framework_comparison()
+        await run_server_comparison()
         return
     
-    if server_type not in ["fastmcp", "fymcp"]:
-        print("지원하는 서버 타입: fastmcp, fymcp")
+    if server_type not in ["improved", "fastmcp", "basic"]:
+        print("지원하는 서버 타입: improved, fastmcp, basic")
         return
     
     # 서버 경로 설정
-    server_path = f"../server/{server_type}_mysql_server.py"
+    if server_type == "improved":
+        server_path = "../server/mysql_mcp_server_v2.py"
+    elif server_type == "fastmcp":
+        server_path = "../server/fastmcp_mysql_server.py"
+    else:
+        server_path = f"../server/{server_type}_mysql_server.py"
     
     # 클라이언트 생성
-    client = FastMCPTestClient(server_path, server_type)
+    client = MCPTestClient(server_path, server_type)
     
     try:
         # 서버 연결

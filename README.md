@@ -26,7 +26,7 @@ Cursor AI에서 MySQL 데이터베이스에 자연어로 쿼리할 수 있는 MC
 - **데이터베이스**: MySQL
 - **자연어 처리**: Groq API (llama3-8b-8192 모델), OpenAI API (대체)
 - **개발 도구**: Cursor IDE
-- **프레임워크**: FastMCP, FyMCP (선택사항)
+- **프레임워크**: FastMCP (선택사항)
 
 ## ✨ 주요 기능
 
@@ -36,13 +36,19 @@ Cursor AI에서 MySQL 데이터베이스에 자연어로 쿼리할 수 있는 MC
 - OpenAI API를 대체 옵션으로 지원
 - 기본 패턴 매칭을 통한 안정적인 변환
 
-### 2. 데이터베이스 관리
+### 2. 스트리밍 방식 결과 전송
+- 실시간 진행 상황 표시 (🔄, ✅, ❌ 이모지)
+- 대용량 결과를 청크 단위로 분할하여 전송
+- 사용자 경험 향상을 위한 즉시 피드백
+- 안정적인 대용량 데이터 처리
+
+### 3. 데이터베이스 관리
 - MySQL 연결 풀을 통한 효율적인 연결 관리
 - 테이블 목록 조회
 - 테이블 구조 및 상세 정보 조회
 - 안전한 쿼리 실행 (SELECT 쿼리만 허용)
 
-### 3. MCP 도구 제공
+### 4. MCP 도구 제공
 - `query_mysql`: 자연어로 데이터베이스 쿼리
 - `list_tables`: 테이블 목록 조회
 - `describe_table`: 테이블 구조 조회
@@ -56,19 +62,18 @@ Cursor AI에서 MySQL 데이터베이스에 자연어로 쿼리할 수 있는 MC
 mysql-mcp/
 ├── server/                          # MCP 서버 소스
 │   ├── mysql_mcp_server.py         # 기본 MCP 서버
-│   ├── mysql_mcp_server_v2.py      # 개선된 MCP 서버 (권장)
-│   ├── fastmcp_mysql_server.py     # FastMCP 프레임워크 서버
-│   ├── fymcp_mysql_server.py       # FyMCP 프레임워크 서버
+│   ├── mysql_mcp_server_v2.py      # 개선된 MCP 서버 (Groq API 지원, 권장)
+│   ├── fastmcp_mysql_server.py     # FastMCP 프레임워크 서버 (Groq API 지원)
 │   ├── config.py                   # 설정 관리
 │   ├── mysql_manager.py            # MySQL 연결 관리
 │   ├── natural_language_processor.py # 자연어 처리
 │   ├── run_server.py               # 기존 서버 실행 스크립트
-│   ├── run_framework_server.py     # 프레임워크 서버 실행 스크립트
+│   ├── run_framework_server.py     # 서버 실행 스크립트
 │   ├── requirements.txt            # 서버 의존성
 │   └── env_example.txt             # 환경 변수 예제
 ├── client/                         # 테스트 클라이언트
 │   ├── test_client.py              # 기존 MCP 서버 테스트 클라이언트
-│   ├── test_fastmcp_client.py      # FastMCP/FyMCP 테스트 클라이언트
+│   ├── test_fastmcp_client.py      # 개선된 테스트 클라이언트
 │   └── requirements.txt            # 클라이언트 의존성
 ├── docs/                           # 문서
 │   └── requirement.md              # 요구사항 문서
@@ -160,10 +165,10 @@ INSERT INTO users (name, email) VALUES
 
 ### 1. 서버 실행
 
-#### 기존 MCP 서버
+#### 개선된 MCP 서버 (권장)
 ```bash
 cd server
-python run_server.py
+python run_framework_server.py improved
 ```
 
 #### FastMCP 프레임워크 서버
@@ -172,10 +177,10 @@ cd server
 python run_framework_server.py fastmcp
 ```
 
-#### FyMCP 프레임워크 서버
+#### 기본 MCP 서버
 ```bash
 cd server
-python run_framework_server.py fymcp
+python run_framework_server.py basic
 ```
 
 #### 서버 목록 조회
@@ -193,21 +198,22 @@ pip install -r requirements.txt
 python test_client.py
 ```
 
-#### FastMCP/FyMCP 클라이언트
+#### 개선된 클라이언트
 ```bash
 cd client
+python test_fastmcp_client.py improved
 python test_fastmcp_client.py fastmcp
-python test_fastmcp_client.py fymcp
-python test_fastmcp_client.py compare  # 프레임워크 비교 테스트
+python test_fastmcp_client.py basic
+python test_fastmcp_client.py compare  # 서버 비교 테스트
 ```
 
 ### 3. Cursor IDE에서 사용
 
 1. Cursor IDE의 설정에서 MCP 서버를 추가
 2. 서버 경로 선택:
-   - 기존: `python /path/to/mysql-mcp/server/mysql_mcp_server_v2.py`
-   - FastMCP: `python /path/to/mysql-mcp/server/fastmcp_mysql_server.py`
-   - FyMCP: `python /path/to/mysql-mcp/server/fymcp_mysql_server.py`
+   - 개선된 서버 (권장): `python /path/to/mysql-mcp/server/mysql_mcp_server_v2.py`
+   - FastMCP 서버: `python /path/to/mysql-mcp/server/fastmcp_mysql_server.py`
+   - 기본 서버: `python /path/to/mysql-mcp/server/mysql_mcp_server.py`
 3. 채팅에서 자연어로 쿼리 실행
 
 ### 4. 사용 예시
@@ -222,33 +228,41 @@ MCP: SHOW TABLES
 사용자: "users 테이블의 구조를 설명해줘"
 MCP: DESCRIBE users
 
-사용자: "데이터베이스 통계를 보여줘" (FyMCP만)
-MCP: 각 테이블의 레코드 수 등 통계 정보
-```
+사용자: "테이블 구조를 설명해줘"
+MCP: DESCRIBE users
 
-## 🔄 프레임워크 비교
+## 🔄 서버 비교
 
-### FastMCP vs FyMCP vs 기존 MCP
+### 개선된 MCP vs FastMCP vs 기본 MCP
 
-| 기능 | 기존 MCP | FastMCP | FyMCP |
-|------|----------|---------|-------|
-| **개발 편의성** | 기본 | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **코드 간결성** | 기본 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **타입 안전성** | 기본 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **에러 처리** | 기본 | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **메타데이터** | 기본 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **추가 기능** | 기본 | 기본 | 통계 조회 등 |
+| 기능 | 기본 MCP | 개선된 MCP | FastMCP |
+|------|----------|------------|---------|
+| **Groq API 지원** | ❌ | ✅ | ✅ |
+| **스트리밍 지원** | ✅ | ✅ | ✅ |
+| **자연어 처리** | 기본 | 고급 | 고급 |
+| **에러 처리** | 기본 | 개선됨 | 개선됨 |
+| **로깅** | 기본 | 상세함 | 상세함 |
+| **모듈화** | 기본 | 완전 분리 | 완전 분리 |
+| **설정 관리** | 하드코딩 | 환경 변수 | 환경 변수 |
+| **개발 편의성** | 기본 | 기본 | ⭐⭐⭐⭐ |
+| **코드 간결성** | 기본 | 기본 | ⭐⭐⭐⭐ |
+| **타입 안전성** | 기본 | 기본 | ⭐⭐⭐⭐ |
 
-### FastMCP 특징
+### 개선된 MCP 서버 특징
+- **스트리밍 지원**: 실시간 진행 상황 표시 및 청크 단위 결과 전송
+- **Groq API 통합**: llama3-8b-8192 모델을 사용한 고성능 자연어 처리
+- **모듈화된 구조**: 기능별로 분리된 깔끔한 코드 구조
+- **환경 변수 설정**: 유연한 설정 관리
+- **상세한 로깅**: 디버깅과 모니터링을 위한 로그 시스템
+- **안전성 강화**: SQL 인젝션 방지 및 쿼리 검증
+
+### FastMCP 서버 특징
+- **스트리밍 지원**: 실시간 진행 상황 표시 및 청크 단위 결과 전송
 - **간단한 데코레이터**: `@self.tool()` 데코레이터로 쉽게 도구 등록
 - **Pydantic 모델**: 타입 안전한 입력 검증
 - **자동 스키마 생성**: 입력 모델에서 자동으로 JSON 스키마 생성
-
-### FyMCP 특징
-- **고급 타입 시스템**: `ToolInput` 클래스로 강화된 입력 검증
-- **메타데이터 지원**: 결과에 상세한 메타데이터 포함
-- **에러 코드**: 구조화된 에러 코드 시스템
-- **추가 도구**: `get_database_stats` 등 고급 기능
+- **Groq API 통합**: llama3-8b-8192 모델을 사용한 고성능 자연어 처리
+- **모듈화된 구조**: 기능별로 분리된 깔끔한 코드 구조
 
 ## 🔧 API 문서
 
@@ -336,47 +350,44 @@ MySQL 데이터베이스 연결을 테스트합니다.
 }
 ```
 
-#### 6. get_database_stats (FyMCP 전용)
-데이터베이스 통계 정보를 조회합니다.
 
-**입력 스키마:**
-```json
-{
-  "type": "object",
-  "properties": {},
-  "required": []
-}
-```
 
 ## 🛠️ 개발 가이드
 
 ### 1. 새로운 도구 추가
 
-#### FastMCP에서
+#### FastMCP 서버에서 (권장)
 ```python
 @self.tool(
     name="new_tool",
     description="새로운 도구 설명"
 )
-async def new_tool(input_data: InputModel) -> ToolResult:
+async def new_tool(self, input_data: InputModel) -> ToolResult:
     # 도구 로직 구현
     return ToolResult(success=True, content="결과")
 ```
 
-#### FyMCP에서
+#### 개선된 MCP 서버에서
 ```python
-@self.tool(
+# mysql_mcp_server_v2.py의 _handle_list_tools 메서드에 도구 정의 추가
+Tool(
     name="new_tool",
     description="새로운 도구 설명",
-    input_model=InputModel
+    inputSchema={
+        "type": "object",
+        "properties": {
+            "parameter": {
+                "type": "string",
+                "description": "매개변수 설명"
+            }
+        },
+        "required": ["parameter"]
+    }
 )
-async def new_tool(input_data: InputModel) -> ToolResult:
-    # 도구 로직 구현
-    return ToolResult(
-        success=True, 
-        content="결과",
-        metadata={"key": "value"}
-    )
+
+# _handle_call_tool 메서드에 도구 처리 로직 추가
+elif request.name == "new_tool":
+    return await self._handle_new_tool(request.arguments)
 ```
 
 ### 2. 자연어 처리 개선
@@ -464,4 +475,3 @@ python run_framework_server.py fymcp --debug
 - [Groq API Documentation](https://console.groq.com/docs)
 - [Llama 3 Model Information](https://huggingface.co/meta-llama/Meta-Llama-3-8B)
 - [FastMCP Documentation](https://github.com/fastmcp/fastmcp)
-- [FyMCP Documentation](https://github.com/fymcp/fymcp)

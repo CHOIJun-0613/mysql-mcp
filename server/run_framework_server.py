@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-FastMCP/FyMCP MySQL MCP 서버 실행 스크립트
-FastMCP와 FyMCP 프레임워크를 사용한 서버 실행을 위한 편의 스크립트입니다.
+MySQL MCP 서버 실행 스크립트 (실제 패키지 버전)
+MySQL MCP 서버 실행을 위한 편의 스크립트입니다.
 """
 
 import os
@@ -21,8 +21,8 @@ def check_python_version():
 def check_dependencies():
     """의존성 패키지 확인"""
     required_packages = [
-        'fastmcp',
-        'fymcp',
+        'mcp',
+        'fastmcp',  # FastMCP 프레임워크
         'mysql-connector-python',
         'openai',  # Groq API와 OpenAI API 모두 사용
         'pydantic'
@@ -59,7 +59,7 @@ def check_environment():
     
     return True
 
-def run_server(server_file: str, framework: str, debug: bool = False):
+def run_server(server_file: str, server_type: str, debug: bool = False):
     """서버 실행"""
     try:
         # 서버 파일 경로 확인
@@ -73,9 +73,9 @@ def run_server(server_file: str, framework: str, debug: bool = False):
         if debug:
             env['LOG_LEVEL'] = 'DEBUG'
         
-        print(f"🚀 {framework.upper()} MySQL MCP 서버를 시작합니다...")
+        print(f"🚀 {server_type.upper()} MySQL MCP 서버를 시작합니다...")
         print(f"서버 파일: {server_file}")
-        print(f"프레임워크: {framework.upper()}")
+        print(f"서버 타입: {server_type.upper()}")
         print(f"로그 레벨: {env.get('LOG_LEVEL', 'INFO')}")
         print()
         
@@ -105,38 +105,38 @@ def run_server(server_file: str, framework: str, debug: bool = False):
         return True
         
     except KeyboardInterrupt:
-        print(f"\n🛑 {framework.upper()} 서버를 종료합니다...")
+        print(f"\n🛑 {server_type.upper()} 서버를 종료합니다...")
         if process:
             process.terminate()
         return True
     except Exception as e:
-        print(f"❌ {framework.upper()} 서버 실행 중 오류 발생: {e}")
+        print(f"❌ {server_type.upper()} 서버 실행 중 오류 발생: {e}")
         return False
 
 def list_available_servers():
     """사용 가능한 서버 목록 표시"""
     servers = [
-        ("fastmcp", "fastmcp_mysql_server.py", "FastMCP 프레임워크를 사용한 MySQL MCP 서버"),
-        ("fymcp", "fymcp_mysql_server.py", "FyMCP 프레임워크를 사용한 MySQL MCP 서버"),
-        ("original", "mysql_mcp_server_v2.py", "기존 MCP 서버 (참고용)")
+        ("improved", "mysql_mcp_server_v2.py", "개선된 MCP 서버 (Groq API 지원, 권장)"),
+        ("fastmcp", "fastmcp_mysql_server.py", "FastMCP 프레임워크 서버 (Groq API 지원)"),
+        ("basic", "mysql_mcp_server.py", "기본 MCP 서버"),
     ]
     
     print("=== 사용 가능한 서버 목록 ===")
-    for framework, filename, description in servers:
+    for server_type, filename, description in servers:
         file_path = Path(filename)
         status = "✅ 사용 가능" if file_path.exists() else "❌ 파일 없음"
-        print(f"- {framework}: {filename}")
+        print(f"- {server_type}: {filename}")
         print(f"  설명: {description}")
         print(f"  상태: {status}")
         print()
 
 def main():
     """메인 함수"""
-    parser = argparse.ArgumentParser(description='FastMCP/FyMCP MySQL MCP 서버 실행')
+    parser = argparse.ArgumentParser(description='MySQL MCP 서버 실행')
     parser.add_argument(
-        'framework',
-        choices=['fastmcp', 'fymcp', 'list'],
-        help='실행할 프레임워크 (fastmcp, fymcp) 또는 서버 목록 조회 (list)'
+        'server_type',
+        choices=['improved', 'fastmcp', 'basic', 'list'],
+        help='실행할 서버 타입 (improved, fastmcp, basic) 또는 서버 목록 조회 (list)'
     )
     parser.add_argument(
         '--debug',
@@ -151,11 +151,11 @@ def main():
     
     args = parser.parse_args()
     
-    print("=== FastMCP/FyMCP MySQL MCP 서버 실행 스크립트 ===")
+    print("=== MySQL MCP 서버 실행 스크립트 ===")
     print()
     
     # 서버 목록 조회
-    if args.framework == 'list':
+    if args.server_type == 'list':
         list_available_servers()
         return
     
@@ -174,10 +174,15 @@ def main():
         return
     
     # 서버 파일 경로 설정
-    server_file = f"{args.framework}_mysql_server.py"
+    if args.server_type == 'improved':
+        server_file = "mysql_mcp_server_v2.py"
+    elif args.server_type == 'fastmcp':
+        server_file = "fastmcp_mysql_server.py"
+    else:
+        server_file = f"{args.server_type}_mysql_server.py"
     
     # 서버 실행
-    success = run_server(server_file, args.framework, args.debug)
+    success = run_server(server_file, args.server_type, args.debug)
     
     if not success:
         sys.exit(1)
