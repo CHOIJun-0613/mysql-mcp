@@ -19,6 +19,7 @@ asyncio
 # 로깅 및 유틸리티
 typing-extensions>=4.0.0
 pydantic>=2.0.0
+python-dotenv>=1.0.0
 
 # 개발 및 테스트용 (선택사항)
 pytest>=7.0.0

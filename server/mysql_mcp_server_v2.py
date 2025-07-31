@@ -43,9 +43,9 @@ class MySQLMCPServerV2:
         self.mysql_manager = MySQLManager()
         self.nlp_processor = NaturalLanguageProcessor()
         
-        # 서버에 도구 등록
-        self.server.list_tools(self._handle_list_tools)
-        self.server.call_tool(self._handle_call_tool)
+        # 서버에 도구 등록 (최신 API 사용)
+        self.server.list_tools()(self._handle_list_tools)
+        self.server.call_tool()(self._handle_call_tool)
         
         logger.info("MySQL MCP 서버 (스트리밍)가 초기화되었습니다.")
     
@@ -379,10 +379,7 @@ class MySQLMCPServerV2:
                 InitializationOptions(
                     server_name=Config.SERVER_NAME,
                     server_version=Config.SERVER_VERSION,
-                    capabilities=self.server.get_capabilities(
-                        notification_options=None,
-                        experimental_capabilities=None,
-                    ),
+                    capabilities={},
                 ),
             )
 

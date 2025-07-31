@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MySQL MCP 서버 테스트 클라이언트 (실제 패키지 버전)
+MySQL MCP 서버 테스트 클라이언트 (최신 MCP API 버전)
 MySQL MCP 서버를 테스트하기 위한 클라이언트 애플리케이션
 """
 
@@ -10,8 +10,30 @@ import logging
 import subprocess
 import sys
 from typing import Dict, Any, Optional
-from mcp.client import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+
+# MCP 클라이언트 import (클라이언트 가상환경과 호환)
+try:
+    from mcp.client import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+    # ClientSession을 ClientSessionGroup으로 래핑
+    class ClientSessionGroup:
+        def __init__(self, read, write, name):
+            self.session = ClientSession(read, write, name)
+        
+        async def initialize(self):
+            return await self.session.initialize()
+        
+        async def list_tools(self):
+            return await self.session.list_tools()
+        
+        async def call_tool(self, name, arguments):
+            return await self.session.call_tool(name, arguments)
+        
+        async def close(self):
+            return await self.session.close()
+except ImportError as e:
+    print(f"MCP 클라이언트 라이브러리를 찾을 수 없습니다: {e}")
+    sys.exit(1)
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +46,7 @@ class MCPTestClient:
         """초기화"""
         self.server_path = server_path
         self.server_type = server_type
-        self.session: Optional[ClientSession] = None
+        self.session_group: Optional[ClientSessionGroup] = None
         
     async def connect(self):
         """MCP 서버에 연결"""
@@ -38,10 +60,10 @@ class MCPTestClient:
             
             # 클라이언트 연결
             async with stdio_client(server_params) as (read, write):
-                self.session = ClientSession(read, write, f"test-client-{self.server_type}")
+                self.session_group = ClientSessionGroup(read, write, f"test-client-{self.server_type}")
                 
                 # 서버 초기화
-                await self.session.initialize()
+                await self.session_group.initialize()
                 logger.info(f"{self.server_type.upper()} MCP 서버에 성공적으로 연결되었습니다.")
                 
         except Exception as e:
@@ -51,7 +73,7 @@ class MCPTestClient:
     async def list_tools(self):
         """사용 가능한 도구 목록 조회"""
         try:
-            tools = await self.session.list_tools()
+            tools = await self.session_group.list_tools()
             print(f"\n=== {self.server_type.upper()} 사용 가능한 도구 목록 ===")
             for tool in tools:
                 print(f"- {tool.name}: {tool.description}")
@@ -66,7 +88,7 @@ class MCPTestClient:
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]):
         """도구 호출"""
         try:
-            result = await self.session.call_tool(tool_name, arguments)
+            result = await self.session_group.call_tool(tool_name, arguments)
             print(f"\n=== {self.server_type.upper()} 도구 호출 결과: {tool_name} ===")
             for content in result.content:
                 if hasattr(content, 'text'):
@@ -163,8 +185,8 @@ class MCPTestClient:
     
     async def close(self):
         """연결 종료"""
-        if self.session:
-            await self.session.close()
+        if self.session_group:
+            await self.session_group.close()
             logger.info(f"{self.server_type.upper()} MCP 클라이언트 연결이 종료되었습니다.")
 
 async def run_server_comparison():

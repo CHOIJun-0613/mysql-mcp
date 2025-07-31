@@ -10,6 +10,16 @@ import subprocess
 import argparse
 from pathlib import Path
 
+# .env 파일 로드
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("✅ .env 파일을 로드했습니다.")
+except ImportError:
+    print("⚠️ python-dotenv가 설치되지 않았습니다. .env 파일을 수동으로 로드하세요.")
+except Exception as e:
+    print(f"⚠️ .env 파일 로드 중 오류: {e}")
+
 def check_python_version():
     """Python 버전 확인"""
     if sys.version_info < (3, 8):
@@ -23,7 +33,7 @@ def check_dependencies():
     required_packages = [
         'mcp',
         'fastmcp',  # FastMCP 프레임워크
-        'mysql-connector-python',
+        'mysql.connector',  # mysql-connector-python 패키지
         'openai',  # Groq API와 OpenAI API 모두 사용
         'pydantic'
     ]
@@ -32,7 +42,11 @@ def check_dependencies():
     
     for package in required_packages:
         try:
-            __import__(package.replace('-', '_'))
+            # mysql.connector는 특별 처리
+            if package == 'mysql.connector':
+                import mysql.connector
+            else:
+                __import__(package.replace('-', '_'))
         except ImportError:
             missing_packages.append(package)
     
@@ -79,28 +93,18 @@ def run_server(server_file: str, server_type: str, debug: bool = False):
         print(f"로그 레벨: {env.get('LOG_LEVEL', 'INFO')}")
         print()
         
-        # 서버 실행
+        # 서버 실행 (포그라운드에서 실행)
         process = subprocess.Popen(
             [sys.executable, str(server_path)],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            env=env
         )
         
         print("✅ 서버가 시작되었습니다.")
         print("종료하려면 Ctrl+C를 누르세요.")
         print()
         
-        # 출력 모니터링
-        while True:
-            output = process.stdout.readline()
-            if output:
-                print(output.strip())
-            
-            # 프로세스 종료 확인
-            if process.poll() is not None:
-                break
+        # 프로세스가 종료될 때까지 대기
+        process.wait()
         
         return True
         
