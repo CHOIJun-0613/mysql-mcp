@@ -20,7 +20,12 @@ class Config:
         'autocommit': True
     }
     
-    # OpenAI API 설정
+    # Groq API 설정 (llama3-8b-8192 모델 사용)
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+    GROQ_API_BASE = os.getenv('GROQ_API_BASE', 'https://api.groq.com/openai/v1')
+    GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama3-8b-8192')
+    
+    # OpenAI API 설정 (기존 호환성을 위해 유지)
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
     OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-3.5-turbo')
     
@@ -37,8 +42,17 @@ class Config:
         return cls.MYSQL_CONFIG.copy()
     
     @classmethod
+    def get_groq_config(cls) -> Dict[str, str]:
+        """Groq 설정 반환"""
+        return {
+            'api_key': cls.GROQ_API_KEY,
+            'api_base': cls.GROQ_API_BASE,
+            'model': cls.GROQ_MODEL
+        }
+    
+    @classmethod
     def get_openai_config(cls) -> Dict[str, str]:
-        """OpenAI 설정 반환"""
+        """OpenAI 설정 반환 (기존 호환성)"""
         return {
             'api_key': cls.OPENAI_API_KEY,
             'model': cls.OPENAI_MODEL
@@ -56,8 +70,14 @@ class Config:
             print("경고: MySQL 데이터베이스 이름이 설정되지 않았습니다.")
             return False
         
+        # Groq API 키 검사
+        if not cls.GROQ_API_KEY:
+            print("정보: Groq API 키가 설정되지 않았습니다. 기본 자연어 변환을 사용합니다.")
+        else:
+            print(f"정보: Groq API를 사용합니다. 모델: {cls.GROQ_MODEL}")
+        
         # OpenAI API 키 검사 (선택사항)
         if not cls.OPENAI_API_KEY:
-            print("정보: OpenAI API 키가 설정되지 않았습니다. 기본 자연어 변환을 사용합니다.")
+            print("정보: OpenAI API 키가 설정되지 않았습니다.")
         
         return True 

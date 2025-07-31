@@ -1,6 +1,7 @@
 """
 자연어 처리 모듈
 자연어 쿼리를 MySQL SQL로 변환하는 기능을 제공합니다.
+Groq API와 llama3-8b-8192 모델을 사용합니다.
 """
 
 import re
@@ -16,7 +17,9 @@ class NaturalLanguageProcessor:
     
     def __init__(self):
         """초기화"""
+        self.groq_client = None
         self.openai_client = None
+        self._init_groq_client()
         self._init_openai_client()
         
         # 한국어 키워드 매핑
@@ -47,8 +50,22 @@ class NaturalLanguageProcessor:
             'order_by': r'(\w+)\s+테이블을\s+(\w+)\s+정렬'
         }
     
+    def _init_groq_client(self):
+        """Groq 클라이언트 초기화"""
+        groq_config = Config.get_groq_config()
+        if groq_config['api_key']:
+            try:
+                self.groq_client = openai.AsyncOpenAI(
+                    api_key=groq_config['api_key'],
+                    base_url=groq_config['api_base']
+                )
+                logger.info(f"Groq 클라이언트가 초기화되었습니다. 모델: {groq_config['model']}")
+            except Exception as e:
+                logger.warning(f"Groq 클라이언트 초기화 실패: {e}")
+                self.groq_client = None
+    
     def _init_openai_client(self):
-        """OpenAI 클라이언트 초기화"""
+        """OpenAI 클라이언트 초기화 (기존 호환성)"""
         openai_config = Config.get_openai_config()
         if openai_config['api_key']:
             try:
@@ -61,7 +78,13 @@ class NaturalLanguageProcessor:
     async def convert_to_sql(self, natural_query: str) -> Optional[str]:
         """자연어를 SQL로 변환"""
         try:
-            # OpenAI API를 사용한 고급 변환 시도
+            # Groq API를 사용한 고급 변환 시도 (우선순위)
+            if self.groq_client:
+                sql_query = await self._convert_with_groq(natural_query)
+                if sql_query:
+                    return sql_query
+            
+            # OpenAI API를 사용한 고급 변환 시도 (대체)
             if self.openai_client:
                 sql_query = await self._convert_with_openai(natural_query)
                 if sql_query:
@@ -74,8 +97,48 @@ class NaturalLanguageProcessor:
             logger.error(f"자연어 변환 중 오류: {e}")
             return None
     
+    async def _convert_with_groq(self, natural_query: str) -> Optional[str]:
+        """Groq API를 사용한 자연어 변환"""
+        try:
+            groq_config = Config.get_groq_config()
+            
+            system_prompt = """
+당신은 한국어 자연어를 MySQL SQL 쿼리로 변환하는 전문가입니다.
+다음 규칙을 따라주세요:
+1. SELECT 쿼리만 생성하세요
+2. 안전한 쿼리만 생성하세요 (LIMIT 사용 권장)
+3. 한국어 테이블명과 컬럼명을 그대로 사용하세요
+4. SQL 키워드는 대문자로 작성하세요
+5. 쿼리만 반환하고 설명은 하지 마세요
+6. Llama 모델의 특성을 고려하여 정확한 SQL을 생성하세요
+"""
+            
+            response = await self.groq_client.chat.completions.create(
+                model=groq_config['model'],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"다음 한국어를 MySQL SQL로 변환해주세요: {natural_query}"}
+                ],
+                max_tokens=200,
+                temperature=0.1
+            )
+            
+            sql_query = response.choices[0].message.content.strip()
+            
+            # SQL 키워드 검증
+            if self._validate_sql_query(sql_query):
+                logger.info(f"Groq API 변환 성공: {sql_query}")
+                return sql_query
+            else:
+                logger.warning(f"Groq가 생성한 쿼리가 유효하지 않습니다: {sql_query}")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"Groq 변환 실패: {e}")
+            return None
+    
     async def _convert_with_openai(self, natural_query: str) -> Optional[str]:
-        """OpenAI API를 사용한 자연어 변환"""
+        """OpenAI API를 사용한 자연어 변환 (기존 호환성)"""
         try:
             system_prompt = """
 당신은 한국어 자연어를 MySQL SQL 쿼리로 변환하는 전문가입니다.
@@ -101,6 +164,7 @@ class NaturalLanguageProcessor:
             
             # SQL 키워드 검증
             if self._validate_sql_query(sql_query):
+                logger.info(f"OpenAI API 변환 성공: {sql_query}")
                 return sql_query
             else:
                 logger.warning(f"OpenAI가 생성한 쿼리가 유효하지 않습니다: {sql_query}")

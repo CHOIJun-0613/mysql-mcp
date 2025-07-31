@@ -9,6 +9,7 @@ Cursor AI에서 MySQL 데이터베이스에 자연어로 쿼리할 수 있는 MC
 - [프로젝트 구조](#프로젝트-구조)
 - [설치 및 설정](#설치-및-설정)
 - [사용법](#사용법)
+- [프레임워크 비교](#프레임워크-비교)
 - [API 문서](#api-문서)
 - [개발 가이드](#개발-가이드)
 - [문제 해결](#문제-해결)
@@ -23,14 +24,16 @@ Cursor AI에서 MySQL 데이터베이스에 자연어로 쿼리할 수 있는 MC
 - **언어**: Python 3.8+
 - **프로토콜**: MCP(Model Context Protocol)
 - **데이터베이스**: MySQL
-- **자연어 처리**: OpenAI API (선택사항)
+- **자연어 처리**: Groq API (llama3-8b-8192 모델), OpenAI API (대체)
 - **개발 도구**: Cursor IDE
+- **프레임워크**: FastMCP, FyMCP (선택사항)
 
 ## ✨ 주요 기능
 
 ### 1. 자연어 쿼리 처리
 - 한국어 자연어를 MySQL SQL로 자동 변환
-- OpenAI API를 활용한 고급 자연어 처리
+- Groq API와 llama3-8b-8192 모델을 활용한 고급 자연어 처리
+- OpenAI API를 대체 옵션으로 지원
 - 기본 패턴 매칭을 통한 안정적인 변환
 
 ### 2. 데이터베이스 관리
@@ -45,6 +48,7 @@ Cursor AI에서 MySQL 데이터베이스에 자연어로 쿼리할 수 있는 MC
 - `describe_table`: 테이블 구조 조회
 - `get_table_info`: 테이블 상세 정보 조회
 - `test_connection`: 데이터베이스 연결 테스트
+- `get_database_stats`: 데이터베이스 통계 조회 (FyMCP 전용)
 
 ## 📁 프로젝트 구조
 
@@ -53,13 +57,18 @@ mysql-mcp/
 ├── server/                          # MCP 서버 소스
 │   ├── mysql_mcp_server.py         # 기본 MCP 서버
 │   ├── mysql_mcp_server_v2.py      # 개선된 MCP 서버 (권장)
+│   ├── fastmcp_mysql_server.py     # FastMCP 프레임워크 서버
+│   ├── fymcp_mysql_server.py       # FyMCP 프레임워크 서버
 │   ├── config.py                   # 설정 관리
 │   ├── mysql_manager.py            # MySQL 연결 관리
 │   ├── natural_language_processor.py # 자연어 처리
+│   ├── run_server.py               # 기존 서버 실행 스크립트
+│   ├── run_framework_server.py     # 프레임워크 서버 실행 스크립트
 │   ├── requirements.txt            # 서버 의존성
 │   └── env_example.txt             # 환경 변수 예제
 ├── client/                         # 테스트 클라이언트
-│   ├── test_client.py              # MCP 서버 테스트 클라이언트
+│   ├── test_client.py              # 기존 MCP 서버 테스트 클라이언트
+│   ├── test_fastmcp_client.py      # FastMCP/FyMCP 테스트 클라이언트
 │   └── requirements.txt            # 클라이언트 의존성
 ├── docs/                           # 문서
 │   └── requirement.md              # 요구사항 문서
@@ -73,6 +82,7 @@ mysql-mcp/
 - Python 3.8 이상
 - MySQL 서버
 - Cursor IDE (MCP 클라이언트)
+- Groq API 키 (권장) 또는 OpenAI API 키
 
 ### 2. 저장소 클론
 
@@ -92,6 +102,18 @@ pip install -r requirements.txt
 
 `server/env_example.txt`를 참고하여 환경 변수를 설정하세요:
 
+#### Groq API 설정 (권장)
+1. [Groq Console](https://console.groq.com/)에서 API 키를 발급받으세요
+2. 환경 변수에 Groq API 키를 설정하세요:
+   ```bash
+   export GROQ_API_KEY=your_groq_api_key
+   export GROQ_API_BASE=https://api.groq.com/openai/v1
+   export GROQ_MODEL=llama3-8b-8192
+   ```
+
+#### OpenAI API 설정 (대체)
+Groq API를 사용할 수 없는 경우 OpenAI API를 대체로 사용할 수 있습니다:
+
 ```bash
 # MySQL 설정
 export MYSQL_HOST=localhost
@@ -100,7 +122,12 @@ export MYSQL_USER=root
 export MYSQL_PASSWORD=your_password
 export MYSQL_DATABASE=test_db
 
-# OpenAI API 설정 (선택사항)
+# Groq API 설정 (llama3-8b-8192 모델 사용)
+export GROQ_API_KEY=your_groq_api_key
+export GROQ_API_BASE=https://api.groq.com/openai/v1
+export GROQ_MODEL=llama3-8b-8192
+
+# OpenAI API 설정 (기존 호환성을 위해 유지)
 export OPENAI_API_KEY=your_openai_api_key
 export OPENAI_MODEL=gpt-3.5-turbo
 
@@ -133,23 +160,54 @@ INSERT INTO users (name, email) VALUES
 
 ### 1. 서버 실행
 
+#### 기존 MCP 서버
 ```bash
 cd server
-python mysql_mcp_server_v2.py
+python run_server.py
+```
+
+#### FastMCP 프레임워크 서버
+```bash
+cd server
+python run_framework_server.py fastmcp
+```
+
+#### FyMCP 프레임워크 서버
+```bash
+cd server
+python run_framework_server.py fymcp
+```
+
+#### 서버 목록 조회
+```bash
+cd server
+python run_framework_server.py list
 ```
 
 ### 2. 클라이언트 테스트
 
+#### 기존 클라이언트
 ```bash
 cd client
 pip install -r requirements.txt
 python test_client.py
 ```
 
+#### FastMCP/FyMCP 클라이언트
+```bash
+cd client
+python test_fastmcp_client.py fastmcp
+python test_fastmcp_client.py fymcp
+python test_fastmcp_client.py compare  # 프레임워크 비교 테스트
+```
+
 ### 3. Cursor IDE에서 사용
 
 1. Cursor IDE의 설정에서 MCP 서버를 추가
-2. 서버 경로: `python /path/to/mysql-mcp/server/mysql_mcp_server_v2.py`
+2. 서버 경로 선택:
+   - 기존: `python /path/to/mysql-mcp/server/mysql_mcp_server_v2.py`
+   - FastMCP: `python /path/to/mysql-mcp/server/fastmcp_mysql_server.py`
+   - FyMCP: `python /path/to/mysql-mcp/server/fymcp_mysql_server.py`
 3. 채팅에서 자연어로 쿼리 실행
 
 ### 4. 사용 예시
@@ -163,7 +221,34 @@ MCP: SHOW TABLES
 
 사용자: "users 테이블의 구조를 설명해줘"
 MCP: DESCRIBE users
+
+사용자: "데이터베이스 통계를 보여줘" (FyMCP만)
+MCP: 각 테이블의 레코드 수 등 통계 정보
 ```
+
+## 🔄 프레임워크 비교
+
+### FastMCP vs FyMCP vs 기존 MCP
+
+| 기능 | 기존 MCP | FastMCP | FyMCP |
+|------|----------|---------|-------|
+| **개발 편의성** | 기본 | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **코드 간결성** | 기본 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **타입 안전성** | 기본 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **에러 처리** | 기본 | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **메타데이터** | 기본 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **추가 기능** | 기본 | 기본 | 통계 조회 등 |
+
+### FastMCP 특징
+- **간단한 데코레이터**: `@self.tool()` 데코레이터로 쉽게 도구 등록
+- **Pydantic 모델**: 타입 안전한 입력 검증
+- **자동 스키마 생성**: 입력 모델에서 자동으로 JSON 스키마 생성
+
+### FyMCP 특징
+- **고급 타입 시스템**: `ToolInput` 클래스로 강화된 입력 검증
+- **메타데이터 지원**: 결과에 상세한 메타데이터 포함
+- **에러 코드**: 구조화된 에러 코드 시스템
+- **추가 도구**: `get_database_stats` 등 고급 기능
 
 ## 🔧 API 문서
 
@@ -251,13 +336,48 @@ MySQL 데이터베이스 연결을 테스트합니다.
 }
 ```
 
+#### 6. get_database_stats (FyMCP 전용)
+데이터베이스 통계 정보를 조회합니다.
+
+**입력 스키마:**
+```json
+{
+  "type": "object",
+  "properties": {},
+  "required": []
+}
+```
+
 ## 🛠️ 개발 가이드
 
 ### 1. 새로운 도구 추가
 
-1. `mysql_mcp_server_v2.py`의 `_handle_list_tools` 메서드에 도구 정의 추가
-2. `_handle_call_tool` 메서드에 도구 처리 로직 추가
-3. 필요한 경우 새로운 핸들러 메서드 구현
+#### FastMCP에서
+```python
+@self.tool(
+    name="new_tool",
+    description="새로운 도구 설명"
+)
+async def new_tool(input_data: InputModel) -> ToolResult:
+    # 도구 로직 구현
+    return ToolResult(success=True, content="결과")
+```
+
+#### FyMCP에서
+```python
+@self.tool(
+    name="new_tool",
+    description="새로운 도구 설명",
+    input_model=InputModel
+)
+async def new_tool(input_data: InputModel) -> ToolResult:
+    # 도구 로직 구현
+    return ToolResult(
+        success=True, 
+        content="결과",
+        metadata={"key": "value"}
+    )
+```
 
 ### 2. 자연어 처리 개선
 
@@ -275,7 +395,9 @@ MySQL 데이터베이스 연결을 테스트합니다.
 
 ```bash
 cd client
-python test_client.py --auto  # 자동화된 테스트 실행
+python test_fastmcp_client.py fastmcp --interactive
+python test_fastmcp_client.py fymcp --interactive
+python test_fastmcp_client.py compare
 ```
 
 ## 🔍 문제 해결
@@ -293,7 +415,8 @@ python test_client.py --auto  # 자동화된 테스트 실행
 - 로그 확인
 
 #### 3. 자연어 변환 실패
-- OpenAI API 키 설정 확인
+- Groq API 키 설정 확인 (우선순위)
+- OpenAI API 키 설정 확인 (대체)
 - 네트워크 연결 확인
 - 기본 변환 로직으로 대체
 
@@ -302,13 +425,19 @@ python test_client.py --auto  # 자동화된 테스트 실행
 - 서버 실행 권한 확인
 - Cursor IDE 재시작
 
+#### 5. 프레임워크 관련 오류
+- FastMCP/FyMCP 패키지 설치 확인
+- Pydantic 버전 호환성 확인
+- 프레임워크별 문서 참조
+
 ### 로그 확인
 
 서버 로그를 확인하여 문제를 진단할 수 있습니다:
 
 ```bash
 export LOG_LEVEL=DEBUG
-python mysql_mcp_server_v2.py
+python run_framework_server.py fastmcp --debug
+python run_framework_server.py fymcp --debug
 ```
 
 ## 📄 라이선스
@@ -332,3 +461,7 @@ python mysql_mcp_server_v2.py
 **참고 문서:**
 - [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18/server)
 - [MCP Quickstart](https://modelcontextprotocol.io/quickstart/server)
+- [Groq API Documentation](https://console.groq.com/docs)
+- [Llama 3 Model Information](https://huggingface.co/meta-llama/Meta-Llama-3-8B)
+- [FastMCP Documentation](https://github.com/fastmcp/fastmcp)
+- [FyMCP Documentation](https://github.com/fymcp/fymcp)

@@ -147,11 +147,11 @@ class MySQLMCPServerV2:
         try:
             logger.info(f"자연어 쿼리 처리: {natural_query}")
             
-            # 자연어를 SQL로 변환
+            # 자연어를 SQL로 변환 (Groq API 사용)
             sql_query = await self.nlp_processor.convert_to_sql(natural_query)
             if not sql_query:
                 return CallToolResult(
-                    content=[TextContent(type="text", text="자연어를 SQL로 변환할 수 없습니다.")]
+                    content=[TextContent(type="text", text="자연어를 SQL로 변환할 수 없습니다. Groq API 키를 확인하세요.")]
                 )
             
             logger.info(f"변환된 SQL: {sql_query}")

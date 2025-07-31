@@ -1,8 +1,11 @@
-# MySQL MCP Server Requirements
+# MySQL MCP Server Requirements (FastMCP/FyMCP 버전)
 # MCP(Model Context Protocol) 서버 실행에 필요한 패키지 목록
 
-# MCP 관련 패키지
-mcp>=1.0.0
+# FastMCP - 빠른 MCP 서버 개발을 위한 프레임워크
+fastmcp>=0.1.0
+
+# FyMCP - Python 기반 MCP 서버 프레임워크
+fymcp>=0.1.0
 
 # MySQL 연결
 mysql-connector-python>=8.0.0
@@ -15,6 +18,7 @@ asyncio
 
 # 로깅 및 유틸리티
 typing-extensions>=4.0.0
+pydantic>=2.0.0
 
 # 개발 및 테스트용 (선택사항)
 pytest>=7.0.0
